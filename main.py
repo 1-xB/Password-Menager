@@ -151,17 +151,19 @@ def main():
                             return
 
                 if key_file and txt_file:
-                    print(f'{location}/{key_file}')
-                    master_password_bytes = master_password.encode()
-                    pm.load_key(master_password_bytes, f'{location}/{key_file}')
-                    pm.load_password_file(f'{location}/{txt_file}')
+                    try:
+                        pm.load_key(master_password, f'{location}/{key_file}')
+                        pm.load_password_file(f'{location}/{txt_file}')
+                    except:
+                        messagebox.showerror('Error', 'Incorrect master password.')
+                        return
+
                     window.destroy()
                     threading.Thread(target=pm.gui).start()
                 else:
                     messagebox.showerror('Error', 'Your password database is corrupted.')
             else:
                 messagebox.showerror('Error', 'The path given does not exist. Enter a valid path.')
-
 
         def open_database():
             file = filedialog.askdirectory()
