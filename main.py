@@ -1,4 +1,5 @@
 import threading
+from tkinter import messagebox
 from customtkinter import *
 from cryptography.fernet import Fernet
 from cryptography.hazmat.primitives.kdf.pbkdf2 import PBKDF2HMAC
@@ -8,7 +9,7 @@ import base64
 import os
 
 
-class PasswordMenager():
+class PasswordManager:
     def __init__(self):
         self.key = None
         self.password_file = None
@@ -16,69 +17,64 @@ class PasswordMenager():
         self.master_password = None
 
     def create_master_key(self, master_password):
-        """salt - losowa wartość dodawana do danych wejściowych przed ich przetworzeniem przez funkcję haszującą.
-         Sól jest używana głównie w kontekście haszowania haseł,
-          aby zwiększyć bezpieczeństwo przechowywanych haseł i utrudnić ataki"""
-        salt = os.urandom(128)  # 128 bitowy salt
+        salt = os.urandom(16)  # 16 bytes salt
         kdf = PBKDF2HMAC(
             algorithm=hashes.SHA256(),
-            length=32,  # To długość wygenerowanego klucza w bajtach. W tym przypadku jest to 32 bajty (256 bitów),
+            length=32,
             salt=salt,
-            iterations=1000000,
+            iterations=100000,
             backend=default_backend()
         )
-        key = base64.urlsafe_b64encode(kdf.derive(master_password.encode()))  # generuje klucz
+        key = base64.urlsafe_b64encode(kdf.derive(master_password.encode()))
         return key, salt
 
     def load_master_key(self, salt, master_password):
         kdf = PBKDF2HMAC(
             algorithm=hashes.SHA256(),
-            length=32,  # To długość wygenerowanego klucza w bajtach. W tym przypadku jest to 32 bajty (256 bitów),
+            length=32,
             salt=salt,
-            iterations=1000000,
+            iterations=100000,
             backend=default_backend()
         )
-        key = base64.urlsafe_b64encode(kdf.derive(master_password.encode()))  # generuje klucz
+        key = base64.urlsafe_b64encode(kdf.derive(master_password.encode()))
         return key
 
-    def create_key(self, master_password, path, name, ):
-        l = f"{path}/{name}.key"
+    def create_key(self, master_password, path, name):
+        key_file_path = f"{path}/{name}.key"
         self.key, salt = self.create_master_key(master_password)
-        with open(l, 'wb') as key:
-            key.write(salt + b":" + self.key)
+        with open(key_file_path, 'wb') as key_file:
+            key_file.write(salt + b":" + self.key)
 
     def load_key(self, master_password, path):
-        with open(path + '.key', 'rb') as key_file:
+        with open(path, 'rb') as key_file:
             data = key_file.read()
             salt, encrypted_key = data.split(b":")
-            self.key = self.load_master_key(master_password, salt)
+            self.key = self.load_master_key(salt, master_password)
 
             if self.verify_password(master_password, salt, encrypted_key):
-                self.key = self.load_master_key(master_password, salt)
                 print("Master password verified. Key loaded successfully.")
             else:
                 print("Incorrect master password.")
                 self.key = None
 
     def verify_password(self, master_password, salt, encrypted_key):
-        # Wygenerowanie klucza na podstawie podanego hasła głównego i soli
         kdf = PBKDF2HMAC(
             algorithm=hashes.SHA256(),
             length=32,
             salt=salt,
-            iterations=1000000,
+            iterations=100000,
             backend=default_backend()
         )
         key_attempt = base64.urlsafe_b64encode(kdf.derive(master_password.encode()))
-        # Porównanie wygenerowanego klucza z zaszyfrowanym kluczem z pliku
         return key_attempt == encrypted_key
 
     def create_password_file(self, path, name, initial_values=None):
-        self.password_file = path
+        self.password_file = f"{path}/{name}.txt"
 
-        if initial_values is not None:
-            for key, values in initial_values.items():
-                self.add_password(key, name, values[0], values[1], values[2])
+        if initial_values:
+            with open(self.password_file, 'w') as file:
+                for key, values in initial_values.items():
+                    self.add_password(key, name, values[0], values[1], values[2])
 
     def load_password_file(self, path):
         self.password_file = path
@@ -86,43 +82,41 @@ class PasswordMenager():
         with open(path, 'r') as file:
             for line in file:
                 site, mail, passw, url = line.strip().split(":")
-                self.password_dict[site] = []
-                self.password_dict[site].append(Fernet(self.key).decrypt(mail.encode()).decode())
-                self.password_dict[site].append(Fernet(self.key).decrypt(passw.encode()).decode())
-                self.password_dict[site].append(Fernet(self.key).decrypt(url.encode()).decode())
+                self.password_dict[site] = [
+                    Fernet(self.key).decrypt(mail.encode()).decode(),
+                    Fernet(self.key).decrypt(passw.encode()).decode(),
+                    Fernet(self.key).decrypt(url.encode()).decode()
+                ]
 
     def add_password(self, site, name, mail, password, url):
         self.password_dict[site] = [mail, password, url]
-        with open(f'{self.password_file}/{name}', 'a+') as file:
-            mail = Fernet(self.key).encrypt(mail.encode())
-            pasw = Fernet(self.key).encrypt(password.encode())
-            url = Fernet(self.key).encrypt(url.encode())
-            file.write(site + ":" + mail + ':' + pasw + ':' + url + '\n')
+        with open(self.password_file, 'a+') as file:
+            mail_encrypted = Fernet(self.key).encrypt(mail.encode()).decode()
+            password_encrypted = Fernet(self.key).encrypt(password.encode()).decode()
+            url_encrypted = Fernet(self.key).encrypt(url.encode()).decode()
+            file.write(f"{site}:{mail_encrypted}:{password_encrypted}:{url_encrypted}\n")
 
     def get_password(self, site):
-        return self.password_dict[site]
+        return self.password_dict.get(site, [])
 
     def gui(self):
-        window = CTk()  # Tworzenie głównego okna
-        window.title("Password Manager")  # Ustawienie tytułu okna
-        window.geometry("400x400")  # Ustawienie rozmiaru okna
+        window = CTk()
+        window.title("Password Manager")
+        window.geometry("400x400")
 
-        # Dodanie nagłówka
         header = CTkLabel(master=window, text="Your Passwords", font=("Arial", 20))
         header.pack(pady=20)
 
-        # Dodanie etykiet z hasłami
-        for i in self.password_dict:
-            password = self.get_password(i)
-            text = f'{i}: {password}'
+        for site, password in self.password_dict.items():
+            text = f'{site}: {password}'
             label = CTkLabel(master=window, text=text, font=("Arial", 14))
             label.pack(pady=5)
 
-        window.mainloop()  # Uruchamianie głównej pętli aplikacji
+        window.mainloop()
 
 
 def main():
-    pm = PasswordMenager()
+    pm = PasswordManager()
     passwords = {
         'Email': ['example@example', 'Email123', 'email.com'],
         'Youtube': ['example@example', 'Youtube123', 'Youtube.com'],
@@ -134,19 +128,49 @@ def main():
 
     def login_menu():
         def log_in():
-            pass
+            location = key_Entry.get()
+            master_password = password_entry.get()
+
+            if os.path.exists(location):
+                files = os.listdir(location)
+                key_file = None
+                txt_file = None
+
+                for file in files:
+                    if file.endswith('.key'):
+                        if key_file is None:
+                            key_file = file
+                        else:
+                            messagebox.showerror('Error', 'There must not be more than one .key file in the folder.')
+                            return
+                    elif file.endswith('.txt'):
+                        if txt_file is None:
+                            txt_file = file
+                        else:
+                            messagebox.showerror('Error', 'There must not be more than one .txt file in the folder.')
+                            return
+
+                if key_file and txt_file:
+                    print(f'{location}/{key_file}')
+                    master_password_bytes = master_password.encode()
+                    pm.load_key(master_password_bytes, f'{location}/{key_file}')
+                    pm.load_password_file(f'{location}/{txt_file}')
+                    window.destroy()
+                    threading.Thread(target=pm.gui).start()
+                else:
+                    messagebox.showerror('Error', 'Your password database is corrupted.')
+            else:
+                messagebox.showerror('Error', 'The path given does not exist. Enter a valid path.')
+
 
         def open_database():
             file = filedialog.askdirectory()
-
-            if file:
-                options = [file]
-                key_combo.configure(values=options)
-                key_combo.set(file)
+            key_Entry.delete(0,'end')
+            key_Entry.insert(0,file)
 
         def create_db():
             window.destroy()
-            thread = threading.Thread(target=createbase_menu())
+            thread = threading.Thread(target=createbase_menu)
             thread.start()
 
         def show_password():
@@ -183,9 +207,8 @@ def main():
         key_label = CTkLabel(master=frame, text="Database folder:")
         key_label.grid(row=2, column=0, pady=5, padx=5)
 
-        options = ['(None)', ]
-        key_combo = CTkComboBox(master=frame, values=options)
-        key_combo.grid(row=2, column=1, pady=20)
+        key_Entry = CTkEntry(master=frame)
+        key_Entry.grid(row=2, column=1, pady=20)
 
         open_button = CTkButton(master=frame, width=10, text='Open', command=open_database)
         open_button.grid(row=2, column=2)
