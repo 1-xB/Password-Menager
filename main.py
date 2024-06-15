@@ -1,5 +1,5 @@
 import threading
-from tkinter import messagebox
+from tkinter import messagebox, Listbox
 from customtkinter import *
 from cryptography.fernet import Fernet
 from cryptography.hazmat.primitives.kdf.pbkdf2 import PBKDF2HMAC
@@ -24,6 +24,10 @@ def create_master_key(master_password):
 
 class PasswordManager:
     def __init__(self):
+        self.URL_Listbox = None
+        self.password_Listbox = None
+        self.email_Listbox = None
+        self.title_Listbox = None
         self.frame = None
         self.window = None
         self.key = None
@@ -165,13 +169,16 @@ class PasswordManager:
         window_add_entry.mainloop()
 
     def gui_update(self):
-        r = 1
+        self.title_Listbox.delete(0, 'end')
+        self.email_Listbox.delete(0, 'end')
+        self.password_Listbox.delete(0, 'end')
+        self.URL_Listbox.delete(0, 'end')
         for item in self.password_dict.items():
-            CTkLabel(master=self.frame, text=item[0]).grid(row=r, column=0, padx=10, pady=2, sticky="NSEW")
-            CTkLabel(master=self.frame, text=item[1][0]).grid(row=r, column=1, padx=10, pady=2, sticky="NSEW")
-            CTkLabel(master=self.frame, text=item[1][1]).grid(row=r, column=2, padx=10, pady=2, sticky="NSEW")
-            CTkLabel(master=self.frame, text=item[1][2]).grid(row=r, column=3, padx=10, pady=2, sticky="NSEW")
-            r += 1
+            self.title_Listbox.insert(END, item[0])
+            self.email_Listbox.insert(END, item[1][0])
+            self.password_Listbox.insert(END, item[1][1])
+            self.URL_Listbox.insert(END, item[1][2])
+
 
     def gui(self):
         self.window = CTk()
@@ -188,16 +195,55 @@ class PasswordManager:
         self.frame = CTkFrame(master=self.window)
         self.frame.grid(row=2, column=0, columnspan=3, pady=10, sticky="NSEW")
 
+
         CTkLabel(master=self.frame, text='Title').grid(row=0, column=0, sticky="NSEW")
         CTkLabel(master=self.frame, text='Email/Username').grid(row=0, column=1, sticky="NSEW")
         CTkLabel(master=self.frame, text='Password').grid(row=0, column=2, sticky="NSEW")
         CTkLabel(master=self.frame, text='URL').grid(row=0, column=3, sticky="NSEW")
 
+        # title
+        CTkLabel(master=self.frame, text='Title').grid(row=0, column=0, sticky="NSEW")
+        self.title_Listbox = Listbox(self.frame, bg='#242424', borderwidth=0, highlightthickness=0, fg='white', selectbackground='#353535')
+        self.title_Listbox.grid(row=1, column=0)
+
+        # email
+        CTkLabel(master=self.frame, text='Email/Username').grid(row=0, column=1, sticky="NSEW")
+        self.email_Listbox = Listbox(self.frame, bg='#242424', borderwidth=0, highlightthickness=0, fg='white', selectbackground='#353535')
+        self.email_Listbox.grid(row=1, column=1)
+
+        # password
+        CTkLabel(master=self.frame, text='Password').grid(row=0, column=2, sticky="NSEW")
+        self.password_Listbox = Listbox(self.frame, bg='#242424', borderwidth=0, highlightthickness=0, fg='white', selectbackground='#353535')
+        self.password_Listbox.grid(row=1, column=2)
+
+        # URL
+        CTkLabel(master=self.frame, text='URL').grid(row=0, column=3, sticky="NSEW")
+        self.URL_Listbox = Listbox(self.frame, bg='#242424', borderwidth=0, highlightthickness=0, fg='white', selectbackground='#353535')
+        self.URL_Listbox.grid(row=1, column=3)
+
+
+
+        scrollbar = CTkScrollbar(master=self.frame, orientation='vertical', command=self.on_scroll)
+        scrollbar.grid(row=1, column=4, sticky="NS")
+
+        self.title_Listbox.config(yscrollcommand=scrollbar.set)
+        self.email_Listbox.config(yscrollcommand=scrollbar.set)
+        self.password_Listbox.config(yscrollcommand=scrollbar.set)
+        self.URL_Listbox.config(yscrollcommand=scrollbar.set)
+
         self.gui_update()
 
-
-
         self.window.mainloop()
+
+    def on_scroll(self, *args):
+        self.title_Listbox.yview(*args)
+        self.email_Listbox.yview(*args)
+        self.password_Listbox.yview(*args)
+        self.URL_Listbox.yview(*args)
+
+
+
+
 
 
 def main():
