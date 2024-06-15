@@ -7,10 +7,12 @@ from cryptography.hazmat.primitives import hashes
 from cryptography.hazmat.backends import default_backend
 import base64
 import os
+import clipboard
+import webbrowser
 
 
 def create_master_key(master_password):
-    salt = os.urandom(128)  # 16 bytes salt
+    salt = os.urandom(16)  # 16 bytes salt
     kdf = PBKDF2HMAC(
         algorithm=hashes.SHA256(),
         length=32,
@@ -24,6 +26,7 @@ def create_master_key(master_password):
 
 class PasswordManager:
     def __init__(self):
+        self.copy_in_progress = None
         self.URL_Listbox = None
         self.password_Listbox = None
         self.email_Listbox = None
@@ -75,8 +78,10 @@ class PasswordManager:
             iterations=100000,
             backend=default_backend()
         )
-        key_attempt = base64.urlsafe_b64encode(kdf.derive(master_password.encode())).decode()
-        return key_attempt == encrypted_key.decode()
+        key_attempt = base64.urlsafe_b64encode(kdf.derive(master_password.encode()))
+        print(key_attempt)
+        print(encrypted_key)
+        return key_attempt == encrypted_key
 
     def create_password_file(self, path, name, initial_values=None):
         self.password_file = f"{path}/{name}.txt"
@@ -135,6 +140,7 @@ class PasswordManager:
                 self.gui_update()
             else:
                 messagebox.showerror('Error', 'Please fill all fields.')
+
         window_add_entry = CTk()
         window_add_entry.geometry('400x300')
         window_add_entry.resizable(False, False)
@@ -179,7 +185,6 @@ class PasswordManager:
             self.password_Listbox.insert(END, item[1][1])
             self.URL_Listbox.insert(END, item[1][2])
 
-
     def gui(self):
         self.window = CTk()
         self.window.title("Password Manager")
@@ -195,7 +200,6 @@ class PasswordManager:
         self.frame = CTkFrame(master=self.window)
         self.frame.grid(row=2, column=0, columnspan=3, pady=10, sticky="NSEW")
 
-
         CTkLabel(master=self.frame, text='Title').grid(row=0, column=0, sticky="NSEW")
         CTkLabel(master=self.frame, text='Email/Username').grid(row=0, column=1, sticky="NSEW")
         CTkLabel(master=self.frame, text='Password').grid(row=0, column=2, sticky="NSEW")
@@ -203,25 +207,30 @@ class PasswordManager:
 
         # title
         CTkLabel(master=self.frame, text='Title').grid(row=0, column=0, sticky="NSEW")
-        self.title_Listbox = Listbox(self.frame, bg='#242424', borderwidth=0, highlightthickness=0, fg='white', selectbackground='#353535')
+        self.title_Listbox = Listbox(self.frame, bg='#242424', borderwidth=0, highlightthickness=0, fg='white',
+                                     selectbackground='#353535')
         self.title_Listbox.grid(row=1, column=0)
 
         # email
         CTkLabel(master=self.frame, text='Email/Username').grid(row=0, column=1, sticky="NSEW")
-        self.email_Listbox = Listbox(self.frame, bg='#242424', borderwidth=0, highlightthickness=0, fg='white', selectbackground='#353535')
+        self.email_Listbox = Listbox(self.frame, bg='#242424', borderwidth=0, highlightthickness=0, fg='white',
+                                     selectbackground='#353535')
         self.email_Listbox.grid(row=1, column=1)
+        self.email_Listbox.bind('<Double-Button-1>', self.copy_mail)
 
         # password
         CTkLabel(master=self.frame, text='Password').grid(row=0, column=2, sticky="NSEW")
-        self.password_Listbox = Listbox(self.frame, bg='#242424', borderwidth=0, highlightthickness=0, fg='white', selectbackground='#353535')
+        self.password_Listbox = Listbox(self.frame, bg='#242424', borderwidth=0, highlightthickness=0, fg='white',
+                                        selectbackground='#353535')
         self.password_Listbox.grid(row=1, column=2)
+        self.password_Listbox.bind('<Double-Button-1>', self.copy_password)
 
         # URL
         CTkLabel(master=self.frame, text='URL').grid(row=0, column=3, sticky="NSEW")
-        self.URL_Listbox = Listbox(self.frame, bg='#242424', borderwidth=0, highlightthickness=0, fg='white', selectbackground='#353535')
+        self.URL_Listbox = Listbox(self.frame, bg='#242424', borderwidth=0, highlightthickness=0, fg='white',
+                                   selectbackground='#353535')
         self.URL_Listbox.grid(row=1, column=3)
-
-
+        self.URL_Listbox.bind('<Double-Button-1>', self.open_URL)
 
         scrollbar = CTkScrollbar(master=self.frame, orientation='vertical', command=self.on_scroll)
         scrollbar.grid(row=1, column=4, sticky="NS")
@@ -241,10 +250,36 @@ class PasswordManager:
         self.password_Listbox.yview(*args)
         self.URL_Listbox.yview(*args)
 
+    def copy_mail(self, event):
+        if self.copy_in_progress:
+            return
+
+        selected_listbox = event.widget
+        if selected_listbox.curselection():
+            index = selected_listbox.curselection()[0]
+            selected_listbox.selection_clear(0, 'end')
+            selected = selected_listbox.get(index)
+            clipboard.copy(selected)
+            messagebox.showinfo('Email/Login copied successfully', 'Email/Login was copied successfully')
 
 
+    def copy_password(self, event):
+        selected_listbox = event.widget
+        if selected_listbox.curselection():
+            index = selected_listbox.curselection()[0]
+            selected_listbox.selection_clear(0, 'end')
+            title = self.title_Listbox.get(index)
+            selected = self.password_dict[title][1]
+            clipboard.copy(selected)
+            messagebox.showinfo('Password copied successfully', 'Password was copied successfully')
 
-
+    def open_URL(self, event):
+        selected_listbox = event.widget
+        if selected_listbox.curselection():
+            index = selected_listbox.curselection()[0]
+            selected_listbox.selection_clear(0, 'end')
+            selected = selected_listbox.get(index)
+            webbrowser.open(selected)
 
 def main():
     pm = PasswordManager()
@@ -375,7 +410,6 @@ def main():
             if location:
                 location_entry.delete(0, END)
                 location_entry.insert(0, location)
-
 
         def create_database():
             name = name_entry.get()
