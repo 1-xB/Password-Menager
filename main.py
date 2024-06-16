@@ -185,10 +185,16 @@ class PasswordManager:
             self.password_Listbox.insert(END, item[1][1])
             self.URL_Listbox.insert(END, item[1][2])
 
+        self.title_Listbox.configure(height=len(self.password_dict))
+        self.email_Listbox.configure(height=len(self.password_dict))
+        self.password_Listbox.configure(height=len(self.password_dict))
+        self.URL_Listbox.configure(height=len(self.password_dict))
+
     def gui(self):
         self.window = CTk()
         self.window.title("Password Manager")
         self.window.geometry("500x400")
+        self.window.resizable(False, False)
 
         header = CTkLabel(master=self.window, text="Your Passwords", font=("Arial", 20))
         header.grid(row=0, column=0, columnspan=3, sticky="NSEW")
@@ -197,7 +203,7 @@ class PasswordManager:
                                      command=self.add_entry)
         add_entry_button.grid(row=1, column=0, pady=10, sticky="NSEW")
 
-        self.frame = CTkFrame(master=self.window)
+        self.frame = CTkScrollableFrame(master=self.window, height=305, width=480)
         self.frame.grid(row=2, column=0, columnspan=3, pady=10, sticky="NSEW")
 
         CTkLabel(master=self.frame, text='Title').grid(row=0, column=0, sticky="NSEW")
@@ -208,37 +214,30 @@ class PasswordManager:
         # title
         CTkLabel(master=self.frame, text='Title').grid(row=0, column=0, sticky="NSEW")
         self.title_Listbox = Listbox(self.frame, bg='#242424', borderwidth=0, highlightthickness=0, fg='white',
-                                     selectbackground='#353535')
+                                     selectbackground='#353535', height=10)
         self.title_Listbox.grid(row=1, column=0)
 
         # email
         CTkLabel(master=self.frame, text='Email/Username').grid(row=0, column=1, sticky="NSEW")
         self.email_Listbox = Listbox(self.frame, bg='#242424', borderwidth=0, highlightthickness=0, fg='white',
-                                     selectbackground='#353535')
+                                     selectbackground='#353535', height=10)
         self.email_Listbox.grid(row=1, column=1)
         self.email_Listbox.bind('<Double-Button-1>', self.copy_mail)
 
         # password
         CTkLabel(master=self.frame, text='Password').grid(row=0, column=2, sticky="NSEW")
         self.password_Listbox = Listbox(self.frame, bg='#242424', borderwidth=0, highlightthickness=0, fg='white',
-                                        selectbackground='#353535')
+                                        selectbackground='#353535', height=10)
         self.password_Listbox.grid(row=1, column=2)
         self.password_Listbox.bind('<Double-Button-1>', self.copy_password)
 
         # URL
         CTkLabel(master=self.frame, text='URL').grid(row=0, column=3, sticky="NSEW")
         self.URL_Listbox = Listbox(self.frame, bg='#242424', borderwidth=0, highlightthickness=0, fg='white',
-                                   selectbackground='#353535')
+                                   selectbackground='#353535', height=10)
         self.URL_Listbox.grid(row=1, column=3)
         self.URL_Listbox.bind('<Double-Button-1>', self.open_URL)
 
-        scrollbar = CTkScrollbar(master=self.frame, orientation='vertical', command=self.on_scroll)
-        scrollbar.grid(row=1, column=4, sticky="NS")
-
-        self.title_Listbox.config(yscrollcommand=scrollbar.set)
-        self.email_Listbox.config(yscrollcommand=scrollbar.set)
-        self.password_Listbox.config(yscrollcommand=scrollbar.set)
-        self.URL_Listbox.config(yscrollcommand=scrollbar.set)
 
         self.gui_update()
 
