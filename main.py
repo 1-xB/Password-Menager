@@ -26,6 +26,11 @@ def create_master_key(master_password):
 
 class PasswordManager:
     def __init__(self):
+        # gui
+        self.index = None
+        self.edit_button = None
+        self.delete_button = None
+        self.add_entry_button = None
         self.copy_in_progress = None
         self.URL_Listbox = None
         self.password_Listbox = None
@@ -33,6 +38,8 @@ class PasswordManager:
         self.title_Listbox = None
         self.frame = None
         self.window = None
+
+        #main
         self.key = None
         self.password_file = None
         self.password_dict = {}
@@ -141,7 +148,7 @@ class PasswordManager:
             else:
                 messagebox.showerror('Error', 'Please fill all fields.')
 
-        window_add_entry = CTk()
+        window_add_entry = CTkToplevel()
         window_add_entry.geometry('400x300')
         window_add_entry.resizable(False, False)
         CTkLabel(master=window_add_entry, text='Add Entry', font=("Arial", 20)).pack()
@@ -182,7 +189,7 @@ class PasswordManager:
         for item in self.password_dict.items():
             self.title_Listbox.insert(END, item[0])
             self.email_Listbox.insert(END, item[1][0])
-            self.password_Listbox.insert(END, item[1][1])
+            self.password_Listbox.insert(END, '*************')
             self.URL_Listbox.insert(END, item[1][2])
 
         self.title_Listbox.configure(height=len(self.password_dict))
@@ -199,9 +206,17 @@ class PasswordManager:
         header = CTkLabel(master=self.window, text="Your Passwords", font=("Arial", 20))
         header.grid(row=0, column=0, columnspan=3, sticky="NSEW")
 
-        add_entry_button = CTkButton(master=self.window, text="Add Entry", font=("Arial", 12), width=10,
-                                     command=self.add_entry)
-        add_entry_button.grid(row=1, column=0, pady=10, sticky="NSEW")
+        self.add_entry_button = CTkButton(master=self.window, text="Add Entry", font=("Arial", 12),
+                                          command=self.add_entry)
+        self.add_entry_button.grid(row=1, column=0, pady=10, sticky="NSEW")
+
+        self.delete_button = CTkButton(master=self.window, text="Delete Entry", font=("Arial", 12), state='disabled',
+                                       command=self.delete)
+        self.delete_button.grid(row=1, column=1, pady=10, sticky="NSEW", padx=10)
+
+        self.edit_button = CTkButton(master=self.window, text="Edit", font=("Arial", 12), state='disabled',
+                                     command=self.edit)
+        self.edit_button.grid(row=1, column=2, pady=10, sticky="NSEW")
 
         self.frame = CTkScrollableFrame(master=self.window, height=305, width=480)
         self.frame.grid(row=2, column=0, columnspan=3, pady=10, sticky="NSEW")
@@ -216,6 +231,7 @@ class PasswordManager:
         self.title_Listbox = Listbox(self.frame, bg='#242424', borderwidth=0, highlightthickness=0, fg='white',
                                      selectbackground='#353535', height=10)
         self.title_Listbox.grid(row=1, column=0)
+        self.title_Listbox.bind('<<ListboxSelect>>', self.on_click)
 
         # email
         CTkLabel(master=self.frame, text='Email/Username').grid(row=0, column=1, sticky="NSEW")
@@ -223,6 +239,7 @@ class PasswordManager:
                                      selectbackground='#353535', height=10)
         self.email_Listbox.grid(row=1, column=1)
         self.email_Listbox.bind('<Double-Button-1>', self.copy_mail)
+        self.email_Listbox.bind('<<ListboxSelect>>', self.on_click)
 
         # password
         CTkLabel(master=self.frame, text='Password').grid(row=0, column=2, sticky="NSEW")
@@ -230,6 +247,7 @@ class PasswordManager:
                                         selectbackground='#353535', height=10)
         self.password_Listbox.grid(row=1, column=2)
         self.password_Listbox.bind('<Double-Button-1>', self.copy_password)
+        self.password_Listbox.bind('<<ListboxSelect>>', self.on_click)
 
         # URL
         CTkLabel(master=self.frame, text='URL').grid(row=0, column=3, sticky="NSEW")
@@ -237,11 +255,39 @@ class PasswordManager:
                                    selectbackground='#353535', height=10)
         self.URL_Listbox.grid(row=1, column=3)
         self.URL_Listbox.bind('<Double-Button-1>', self.open_URL)
-
+        self.URL_Listbox.bind('<Button-1>', self.on_click)
 
         self.gui_update()
 
         self.window.mainloop()
+
+    def edit(self):
+        title = self.title_Listbox.get(self.index)
+        email = self.password_dict[title][0]
+        password = self.password_dict[title][1]
+        URL = self.password_dict[title][2]
+        print(title, email, password, URL)
+
+    def delete(self):
+        key = self.title_Listbox.get(self.index)
+        self.password_dict.pop(key)
+
+        with open(self.password_file, 'w') as file:
+            # Nie zapisujemy nic, co powoduje usunięcie całej zawartości
+            pass
+
+        for psw in self.password_dict.items():
+            self.add_password(psw[0], psw[1][0], psw[1][1], psw[1][2])
+
+        self.gui_update()
+
+    def on_click(self, event):
+        self.delete_button.configure(state='normal')
+        self.edit_button.configure(state='normal')
+
+        selected_listbox = event.widget
+        if selected_listbox.curselection():
+            self.index = selected_listbox.curselection()[0]
 
     def on_scroll(self, *args):
         self.title_Listbox.yview(*args)
@@ -250,24 +296,21 @@ class PasswordManager:
         self.URL_Listbox.yview(*args)
 
     def copy_mail(self, event):
-        if self.copy_in_progress:
-            return
 
         selected_listbox = event.widget
         if selected_listbox.curselection():
-            index = selected_listbox.curselection()[0]
+            self.index = selected_listbox.curselection()[0]
             selected_listbox.selection_clear(0, 'end')
-            selected = selected_listbox.get(index)
+            selected = selected_listbox.get(self.index)
             clipboard.copy(selected)
             messagebox.showinfo('Email/Login copied successfully', 'Email/Login was copied successfully')
-
 
     def copy_password(self, event):
         selected_listbox = event.widget
         if selected_listbox.curselection():
-            index = selected_listbox.curselection()[0]
+            self.index = selected_listbox.curselection()[0]
             selected_listbox.selection_clear(0, 'end')
-            title = self.title_Listbox.get(index)
+            title = self.title_Listbox.get(self.index)
             selected = self.password_dict[title][1]
             clipboard.copy(selected)
             messagebox.showinfo('Password copied successfully', 'Password was copied successfully')
@@ -275,10 +318,11 @@ class PasswordManager:
     def open_URL(self, event):
         selected_listbox = event.widget
         if selected_listbox.curselection():
-            index = selected_listbox.curselection()[0]
+            self.index = selected_listbox.curselection()[0]
             selected_listbox.selection_clear(0, 'end')
-            selected = selected_listbox.get(index)
+            selected = selected_listbox.get(self.index)
             webbrowser.open(selected)
+
 
 def main():
     pm = PasswordManager()
