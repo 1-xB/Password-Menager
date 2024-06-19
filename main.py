@@ -148,7 +148,7 @@ class PasswordManager:
             else:
                 messagebox.showerror('Error', 'Please fill all fields.')
 
-        window_add_entry = CTkToplevel()
+        window_add_entry = CTk()
         window_add_entry.geometry('400x300')
         window_add_entry.resizable(False, False)
         CTkLabel(master=window_add_entry, text='Add Entry', font=("Arial", 20)).pack()
@@ -198,7 +198,7 @@ class PasswordManager:
         self.URL_Listbox.configure(height=len(self.password_dict))
 
     def gui(self):
-        self.window = CTk()
+        self.window = CTkToplevel()
         self.window.title("Password Manager")
         self.window.geometry("500x400")
         self.window.resizable(False, False)
@@ -262,11 +262,70 @@ class PasswordManager:
         self.window.mainloop()
 
     def edit(self):
+        def edit_entry():
+            new_title = Title_entry.get()
+            new_email = Email_entry.get()
+            new_password = Password_entry.get()
+            new_URL = URL_entry.get()
+            if new_title and new_email and new_password and new_URL:
+                self.password_dict[new_title] = self.password_dict.pop(title)
+                self.password_dict[new_title] = [new_email, new_password, new_URL]
+                with open(self.password_file, 'w') as file:
+                    # Nie zapisujemy nic, co powoduje usunięcie całej zawartości
+                    pass
+
+                for psw in self.password_dict.items():
+                    self.add_password(psw[0], psw[1][0], psw[1][1], psw[1][2])
+
+                window_edit_entry.destroy()
+                self.gui_update()
+
+            else:
+                messagebox.showerror('Error', 'Please fill all fields.')
+
+        def update():
+            email = self.password_dict[title][0]
+            password = self.password_dict[title][1]
+            URL = self.password_dict[title][2]
+            Title_entry.insert(0, title)
+            Email_entry.insert(0, email)
+            Password_entry.insert(0, password)
+            URL_entry.insert(0, URL)
+            print(title, email, password, URL)
+
         title = self.title_Listbox.get(self.index)
-        email = self.password_dict[title][0]
-        password = self.password_dict[title][1]
-        URL = self.password_dict[title][2]
-        print(title, email, password, URL)
+        window_edit_entry = CTk()
+        window_edit_entry.geometry('400x300')
+        window_edit_entry.resizable(False, False)
+        CTkLabel(master=window_edit_entry, text='Edit Entry', font=("Arial", 20)).pack()
+        frame_main = CTkFrame(master=window_edit_entry)
+        frame_main.pack(pady=10)
+
+        # title
+        CTkLabel(master=frame_main, text='Title').grid(row=0, column=0, sticky="NSEW")
+        Title_entry = CTkEntry(master=frame_main)
+        Title_entry.grid(row=0, column=1, padx=10, pady=10, sticky="NSEW")
+
+        # email
+        CTkLabel(master=frame_main, text='Email/Username').grid(row=1, column=0, sticky="NSEW", pady=10)
+        Email_entry = CTkEntry(master=frame_main)
+        Email_entry.grid(row=1, column=1, padx=10, pady=10, sticky="NSEW")
+
+        # password
+        CTkLabel(master=frame_main, text='Password').grid(row=2, column=0, sticky="NSEW", pady=10)
+        Password_entry = CTkEntry(master=frame_main)
+        Password_entry.grid(row=2, column=1, padx=10, pady=10, sticky="NSEW")
+
+        # url
+        CTkLabel(master=frame_main, text='URL').grid(row=3, column=0, sticky="NSEW", pady=10)
+        URL_entry = CTkEntry(master=frame_main)
+        URL_entry.grid(row=3, column=1, padx=10, pady=10, sticky="NSEW")
+
+        # create
+        button_create = CTkButton(master=window_edit_entry, text='Edit', command=edit_entry)
+        button_create.pack()
+        update()
+        window_edit_entry.mainloop()
 
     def delete(self):
         key = self.title_Listbox.get(self.index)
