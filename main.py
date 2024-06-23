@@ -198,7 +198,7 @@ class PasswordManager:
         self.URL_Listbox.configure(height=len(self.password_dict))
 
     def gui(self):
-        self.window = CTkToplevel()
+        self.window = CTk()
         self.window.title("Password Manager")
         self.window.geometry("500x400")
         self.window.resizable(False, False)
