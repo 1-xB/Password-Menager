@@ -24,6 +24,32 @@ def create_master_key(master_password):
     return key, salt
 
 
+def load_master_key(salt, master_password):
+    kdf = PBKDF2HMAC(
+        algorithm=hashes.SHA256(),
+        length=32,
+        salt=salt,
+        iterations=100000,
+        backend=default_backend()
+    )
+    key = base64.urlsafe_b64encode(kdf.derive(master_password.encode()))
+    return key
+
+
+def verify_password(master_password, salt, encrypted_key):
+    kdf = PBKDF2HMAC(
+        algorithm=hashes.SHA256(),
+        length=32,
+        salt=salt,
+        iterations=100000,
+        backend=default_backend()
+    )
+    key_attempt = base64.urlsafe_b64encode(kdf.derive(master_password.encode()))
+    print(key_attempt)
+    print(encrypted_key)
+    return key_attempt == encrypted_key
+
+
 class PasswordManager:
     def __init__(self):
         # gui
@@ -46,17 +72,6 @@ class PasswordManager:
         self.master_password = None
         self.logged = False
 
-    def load_master_key(self, salt, master_password):
-        kdf = PBKDF2HMAC(
-            algorithm=hashes.SHA256(),
-            length=32,
-            salt=salt,
-            iterations=100000,
-            backend=default_backend()
-        )
-        key = base64.urlsafe_b64encode(kdf.derive(master_password.encode()))
-        return key
-
     def create_key(self, master_password, path, name):
         key_file_path = f"{path}/{name}.key"
         self.key, salt = create_master_key(master_password)
@@ -67,28 +82,15 @@ class PasswordManager:
         with open(path, 'rb') as key_file:
             data = key_file.read()
             salt, encrypted_key = data.split(b":", 1)  # Dzielenie tylko na pierwszym znaku ":"
-            self.key = self.load_master_key(salt, master_password)
+            self.key = load_master_key(salt, master_password)
 
-            if self.verify_password(master_password, salt, encrypted_key):
+            if verify_password(master_password, salt, encrypted_key):
                 print("Master password verified. Key loaded successfully.")
                 self.logged = True
             else:
                 print("Incorrect master password.")
                 messagebox.showerror('Error', 'Incorrect master password.')
                 self.key = None
-
-    def verify_password(self, master_password, salt, encrypted_key):
-        kdf = PBKDF2HMAC(
-            algorithm=hashes.SHA256(),
-            length=32,
-            salt=salt,
-            iterations=100000,
-            backend=default_backend()
-        )
-        key_attempt = base64.urlsafe_b64encode(kdf.derive(master_password.encode()))
-        print(key_attempt)
-        print(encrypted_key)
-        return key_attempt == encrypted_key
 
     def create_password_file(self, path, name, initial_values=None):
         self.password_file = f"{path}/{name}.txt"
